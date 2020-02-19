@@ -6,7 +6,6 @@ server_yaml = '.kitchen/wsus-server-windows-2016.yml'
 driver:
   name: ec2
   region: eu-west-1
-  instance_type: m5.xlarge
   shared_credentials_profile: <%= ENV['AWS_PROFILE'] %>
   retryable_tries: 120
   retryable_sleep: 5
@@ -22,22 +21,38 @@ platforms:
 
 suites:
   - name: wsus_server
+    # FIXME: port 8530 needs to be open
+    driver:
+      instance_type: r5.2xlarge
+      ebs_optimized: true
+      block_device_mappings:
+        - device_name: /dev/sda1
+          ebs:
+            volume_type: io1
+            iops: 1500
+            volume_size: 50
+            delete_on_termination: true
+        - device_name: /dev/sdb
+          ebs:
+            volume_type: io1
+            iops: 1500
+            volume_size: 500
+            delete_on_termination: true
     provisioner:
       named_run_list: wsus_server
-    verifier:
-      inspec_tests:
-        - test/integration/default
     attributes:
       wsus_server:
         freeze: 
           name: 'kitchen_windows2016'
   - name: wsus_client
+    driver:
+      instance_type: m5.xlarge
+      image_search: 
+        owner-id: 801119661308
+        name: Windows_Server-2016-English-Full-Base-2019.11.13
     provisioner:
       named_run_list: wsus_client
-    verifier:
-      inspec_tests:
-        - test/integration/default
     attributes:
       wsus_client:
-        wsus_server: 'http://<%= File.exists?(server_yaml) ? YAML.load_file(server_yaml)["hostname"] || 'wsus-server' : 'wsus-server' %>:8530'
+        wsus_server: 'http://<%= File.exists?(server_yaml) ? YAML.load_file(server_yaml)["hostname"] || "wsus-server" : "wsus-server" %>:8530'
         update_group: 'kitchen_windows2016'
